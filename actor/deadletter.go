@@ -8,6 +8,7 @@ import (
 	"github.com/asynkron/protoactor-go/log"
 	"github.com/asynkron/protoactor-go/metrics"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 type deadLetterProcess struct {
@@ -77,12 +78,12 @@ func (dp *deadLetterProcess) SendUserMessage(pid *PID, message interface{}) {
 	if ok && metricsSystem.enabled {
 		ctx := context.Background()
 		if instruments := metricsSystem.metrics.Get(metrics.InternalActorMetrics); instruments != nil {
-			labels := []attribute.KeyValue{
+			labels := metric.WithAttributes(
 				attribute.String("address", dp.actorSystem.Address()),
 				attribute.String("messagetype", strings.Replace(fmt.Sprintf("%T", message), "*", "", 1)),
-			}
+			)
 
-			instruments.DeadLetterCount.Add(ctx, 1, labels...)
+			instruments.DeadLetterCount.Add(ctx, 1, labels)
 		}
 	}
 	_, msg, sender := UnwrapEnvelope(message)

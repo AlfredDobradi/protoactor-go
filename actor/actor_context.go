@@ -12,6 +12,7 @@ import (
 	"github.com/asynkron/protoactor-go/metrics"
 	"github.com/emirpasic/gods/stacks/linkedliststack"
 	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
 )
 
 const (
@@ -428,7 +429,7 @@ func (ctx *actorContext) Stop(pid *PID) {
 		if ok && metricsSystem.enabled {
 			_ctx := context.Background()
 			if instruments := metricsSystem.metrics.Get(metrics.InternalActorMetrics); instruments != nil {
-				instruments.ActorStoppedCount.Add(_ctx, 1, metricsSystem.CommonLabels(ctx)...)
+				instruments.ActorStoppedCount.Add(_ctx, 1, metric.WithAttributeSet(metricsSystem.CommonLabels(ctx)))
 			}
 		}
 	}
@@ -493,11 +494,15 @@ func (ctx *actorContext) InvokeUserMessage(md interface{}) {
 		if instruments := systemMetrics.metrics.Get(metrics.InternalActorMetrics); instruments != nil {
 			histogram := instruments.ActorMessageReceiveHistogram
 
-			labels := append(
-				systemMetrics.CommonLabels(ctx),
+			labels := systemMetrics.CommonLabels(ctx)
+			kv := append(
+				labels.ToSlice(),
 				attribute.String("messagetype", fmt.Sprintf("%T", md)),
 			)
-			histogram.Record(_ctx, delta.Seconds(), labels...)
+			labels = attribute.NewSet(kv...)
+			opts := metric.WithAttributeSet(labels)
+
+			histogram.Record(_ctx, delta.Seconds(), opts)
 		}
 	} else {
 		ctx.processMessage(md)
@@ -534,7 +539,8 @@ func (ctx *actorContext) incarnateActor() {
 	if ok && metricsSystem.enabled {
 		_ctx := context.Background()
 		if instruments := metricsSystem.metrics.Get(metrics.InternalActorMetrics); instruments != nil {
-			instruments.ActorSpawnCount.Add(_ctx, 1, metricsSystem.CommonLabels(ctx)...)		}
+			instruments.ActorSpawnCount.Add(_ctx, 1, metric.WithAttributeSet(metricsSystem.CommonLabels(ctx)))
+		}
 	}
 }
 
@@ -597,7 +603,7 @@ func (ctx *actorContext) handleRestart() {
 	if ok && metricsSystem.enabled {
 		_ctx := context.Background()
 		if instruments := metricsSystem.metrics.Get(metrics.InternalActorMetrics); instruments != nil {
-			instruments.ActorRestartedCount.Add(_ctx, 1, metricsSystem.CommonLabels(ctx)...)
+			instruments.ActorRestartedCount.Add(_ctx, 1, metric.WithAttributeSet(metricsSystem.CommonLabels(ctx)))
 		}
 	}
 }
@@ -709,7 +715,7 @@ func (ctx *actorContext) EscalateFailure(reason interface{}, message interface{}
 	if ok && metricsSystem.enabled {
 		_ctx := context.Background()
 		if instruments := metricsSystem.metrics.Get(metrics.InternalActorMetrics); instruments != nil {
-			instruments.ActorFailureCount.Add(_ctx, 1, metricsSystem.CommonLabels(ctx)...)
+			instruments.ActorFailureCount.Add(_ctx, 1, metric.WithAttributeSet(metricsSystem.CommonLabels(ctx)))
 		}
 	}
 
